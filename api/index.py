@@ -194,7 +194,7 @@ async def root():
         }
     }
 
-@app.get("/api/home", response_model=HomeData)
+@app.get("/home", response_model=HomeData)
 async def get_home():
     """Retorna dados da página inicial"""
     html = await fetch_page(BASE_URL)
@@ -237,7 +237,7 @@ async def get_home():
     
     return result
 
-@app.get("/api/search", response_model=List[MangaCard])
+@app.get("/search", response_model=List[MangaCard])
 async def search_manga(q: str = Query(..., min_length=1)):
     """Busca mangás com autocomplete dinâmico usando AJAX do WordPress"""
     
@@ -385,7 +385,7 @@ async def search_manga(q: str = Query(..., min_length=1)):
     
     return results
 
-@app.get("/api/manga/{slug}", response_model=MangaDetail)
+@app.get("/manga/{slug}", response_model=MangaDetail)
 async def get_manga_detail(slug: str):
     """Retorna detalhes de um mangá"""
     url = f"{BASE_URL}/manga/{slug}/"
@@ -503,7 +503,7 @@ async def get_manga_detail(slug: str):
         chapters=chapters
     )
 
-@app.get("/api/manga/{slug}/chapter/{chapter_number}", response_model=ChapterImages)
+@app.get("/manga/{slug}/chapter/{chapter_number}", response_model=ChapterImages)
 async def get_chapter_images(slug: str, chapter_number: str):
     """Retorna as imagens de um capítulo"""
     url = f"{BASE_URL}/manga/{slug}/capitulo-{chapter_number}/"
@@ -549,7 +549,7 @@ async def get_chapter_images(slug: str, chapter_number: str):
         next_chapter=next_chapter
     )
 
-@app.get("/api/manga/list", response_model=List[MangaCard])
+@app.get("/manga/list", response_model=List[MangaCard])
 async def list_all_manga(page: int = Query(1, ge=1)):
     """Lista todos os mangás com paginação"""
     url = f"{BASE_URL}/manga/page/{page}/" if page > 1 else f"{BASE_URL}/manga/"
@@ -567,7 +567,7 @@ async def list_all_manga(page: int = Query(1, ge=1)):
     
     return results
 
-@app.get("/api/proxy-image")
+@app.get("/proxy-image")
 async def proxy_image(url: str = Query(..., description="URL da imagem a ser carregada")):
     """Proxy para carregar imagens com os headers corretos e evitar CORS/hotlinking"""
     
@@ -620,7 +620,7 @@ async def proxy_image(url: str = Query(..., description="URL da imagem a ser car
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao carregar imagem: {str(e)}")
 
-@app.get("/api/genres", response_model=List[Genre])
+@app.get("/genres", response_model=List[Genre])
 async def get_genres():
     """Retorna lista de todos os gêneros/tags disponíveis"""
     cache_key = "genres_list"
@@ -652,7 +652,7 @@ async def get_genres():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar gêneros: {str(e)}")
 
-@app.get("/api/genre/{genre_slug}", response_model=List[MangaCard])
+@app.get("/genre/{genre_slug}", response_model=List[MangaCard])
 async def get_manga_by_genre(
     genre_slug: str,
     page: int = Query(1, ge=1, description="Número da página")
@@ -688,7 +688,7 @@ async def get_manga_by_genre(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar mangás do gênero: {str(e)}")
 
-@app.get("/api/filter", response_model=List[MangaCard])
+@app.get("/filter", response_model=List[MangaCard])
 async def filter_manga(
     genres: Optional[str] = Query(None, description="Gêneros separados por vírgula (ex: acao,aventura)"),
     status: Optional[str] = Query(None, description="Status do mangá (ongoing, completed, etc)"),
