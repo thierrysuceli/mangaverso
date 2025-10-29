@@ -11,7 +11,11 @@ from pydantic import BaseModel
 import re
 import base64
 
-app = FastAPI(title="LerMangas API", description="API rápida para scraping de mangás")
+app = FastAPI(
+    title="LerMangas API", 
+    description="API rápida para scraping de mangás",
+    lifespan=None  # Desabilita lifespan para compatibilidade com Mangum
+)
 
 # Configurar CORS para o frontend acessar
 app.add_middleware(
