@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #9d00ff #1e1e1e;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #9d00ff;
+  border-radius: 20px;
+  border: 2px solid #1e1e1e;
+}
+
+/* Carousel - Hide scrollbar */
+.carousel-scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.carousel-scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Reader page */
+.reader-page {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto 8px auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  background: #333;
+}
+

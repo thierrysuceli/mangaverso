@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug LocalStorage</title>
+</head>
+<body>
+    <h1>Debug LocalStorage - Supabase Auth</h1>
+    <button onclick="showStorage()">Mostrar LocalStorage</button>
+    <button onclick="clearAuth()">Limpar Auth</button>
+    <pre id="output"></pre>
+
+    <script>
+        function showStorage() {
+            const output = document.getElementById('output');
+            let info = 'TODAS AS CHAVES NO LOCALSTORAGE:\n\n';
+            
+            // Mostrar todas as chaves
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                
+                info += `KEY: ${key}\n`;
+                
+                // Tentar parsear JSON
+                try {
+                    const parsed = JSON.parse(value);
+                    info += `VALUE (parsed):\n${JSON.stringify(parsed, null, 2)}\n\n`;
+                } catch (e) {
+                    info += `VALUE (raw):\n${value}\n\n`;
+                }
+                
+                info += '='.repeat(80) + '\n\n';
+            }
+            
+            output.textContent = info;
+        }
+
+        function clearAuth() {
+            // Limpar todas as chaves relacionadas a auth
+            const keysToRemove = [];
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.includes('supabase') || key.includes('auth') || key.includes('sb-')) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            alert(`Removidas ${keysToRemove.length} chaves: ${keysToRemove.join(', ')}`);
+            showStorage();
+        }
+
+        // Mostrar automaticamente ao carregar
+        window.onload = showStorage;
+    </script>
+</body>
+</html>

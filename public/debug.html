@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Auth - MangaVerso</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #9123db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #7a1db8;
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .success {
+            color: #4ade80;
+        }
+        .error {
+            color: #f87171;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Auth - MangaVerso</h1>
+
+    <div class="section">
+        <h2>1. Estado do LocalStorage</h2>
+        <button onclick="checkLocalStorage()">Verificar Estado</button>
+        <button onclick="clearAuth()">Limpar Auth</button>
+        <button onclick="clearAll()">Limpar Tudo</button>
+        <pre id="localStorageOutput">Clique em "Verificar Estado"</pre>
+    </div>
+
+    <div class="section">
+        <h2>2. Teste de Conexão Supabase</h2>
+        <button onclick="testSupabase()">Testar Conexão</button>
+        <pre id="supabaseOutput">Clique em "Testar Conexão"</pre>
+    </div>
+
+    <div class="section">
+        <h2>3. Ações Rápidas</h2>
+        <button onclick="window.location.href='http://localhost:5173'">Ir para App</button>
+        <button onclick="window.location.href='http://localhost:5173/login'">Ir para Login</button>
+        <button onclick="window.open('/dev-tools', '_blank')">Abrir DevTools</button>
+    </div>
+
+    <div class="section">
+        <h2>4. Logs em Tempo Real</h2>
+        <button onclick="clearLogs()">Limpar Logs</button>
+        <pre id="logsOutput" style="max-height: 300px; overflow-y: auto;"></pre>
+    </div>
+
+    <script>
+        // Capturar console.log
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logs = [];
+
+        console.log = function(...args) {
+            logs.push({ type: 'log', time: new Date().toISOString(), message: args.join(' ') });
+            updateLogs();
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            logs.push({ type: 'error', time: new Date().toISOString(), message: args.join(' ') });
+            updateLogs();
+            originalError.apply(console, args);
+        };
+
+        function updateLogs() {
+            const output = document.getElementById('logsOutput');
+            output.innerHTML = logs.map(log => {
+                const className = log.type === 'error' ? 'error' : '';
+                const time = new Date(log.time).toLocaleTimeString();
+                return `<div class="${className}">[${time}] ${log.message}</div>`;
+            }).join('\n');
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearLogs() {
+            logs.length = 0;
+            updateLogs();
+        }
+
+        function checkLocalStorage() {
+            const output = document.getElementById('localStorageOutput');
+            const authData = localStorage.getItem('mangaverso-auth');
+            
+            if (!authData) {
+                output.innerHTML = '<span class="error">❌ Nenhum dado encontrado</span>';
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(authData);
+                output.innerHTML = `<span class="success">✅ Dados encontrados:</span>\n${JSON.stringify(parsed, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Erro ao parsear:\n${error.message}\n\nDados brutos:\n${authData}</span>`;
+            }
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('mangaverso-auth');
+            document.getElementById('localStorageOutput').innerHTML = '<span class="success">✅ Auth limpo com sucesso</span>';
+            console.log('[DEBUG] Auth cleared from localStorage');
+        }
+
+        function clearAll() {
+            localStorage.clear();
+            document.getElementById('localStorageOutput').innerHTML = '<span class="success">✅ Todo localStorage limpo</span>';
+            console.log('[DEBUG] All localStorage cleared');
+        }
+
+        async function testSupabase() {
+            const output = document.getElementById('supabaseOutput');
+            output.innerHTML = '⏳ Testando conexão...';
+
+            try {
+                const response = await fetch('https://rcyqkooivpcgvonrkgbb.supabase.co/rest/v1/', {
+                    headers: {
+                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjeXFrb29pdnBjZ3ZvbnJrZ2JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk5NDk0MzQsImV4cCI6MjA0NTUyNTQzNH0.jdqOu_vBJ3-Gc0dL8dNI1EcbD2LGo8wgZ4aQtlO_0H8'
+                    }
+                });
+
+                if (response.ok) {
+                    output.innerHTML = '<span class="success">✅ Conexão OK!</span>\nStatus: ' + response.status;
+                } else {
+                    output.innerHTML = '<span class="error">❌ Erro na conexão</span>\nStatus: ' + response.status;
+                }
+            } catch (error) {
+                output.innerHTML = '<span class="error">❌ Erro:</span>\n' + error.message;
+            }
+        }
+
+        // Auto-check ao carregar
+        window.onload = () => {
+            checkLocalStorage();
+            console.log('[DEBUG] Debug page loaded');
+        };
+    </script>
+</body>
+</html>
