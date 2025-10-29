@@ -10,11 +10,18 @@ import asyncio
 from pydantic import BaseModel
 import re
 import base64
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    yield
+    # Shutdown
 
 app = FastAPI(
     title="LerMangas API", 
     description="API rápida para scraping de mangás",
-    lifespan=None  # Desabilita lifespan para compatibilidade com Mangum
+    lifespan=lifespan
 )
 
 # Configurar CORS para o frontend acessar
