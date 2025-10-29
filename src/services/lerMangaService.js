@@ -3,7 +3,10 @@
  * Handles all communication with your custom FastAPI backend
  */
 
-const LERMANGA_API_BASE = 'http://localhost:8000';
+// Use a URL da Vercel em produção, localhost em desenvolvimento
+const LERMANGA_API_BASE = import.meta.env.PROD 
+  ? '/api'  // Em produção, usa a API serverless da Vercel
+  : 'http://localhost:8000';  // Em desenvolvimento, usa localhost
 
 /**
  * Search mangas by text
