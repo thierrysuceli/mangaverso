@@ -11,6 +11,10 @@ from pydantic import BaseModel
 import re
 import base64
 
+# Configuração Vercel: Tempo máximo de execução (5 minutos no plano gratuito)
+# Isso permite que requisições pesadas (scraping, proxy) tenham tempo suficiente
+maxDuration = 300  # 300 segundos = 5 minutos
+
 app = FastAPI(title="LerMangas API", description="API rápida para scraping de mangás")
 
 # Configurar CORS para o frontend acessar

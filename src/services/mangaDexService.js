@@ -12,12 +12,12 @@ const MANGADEX_COVER_BASE = 'https://uploads.mangadex.org';
 // Backend API base URL
 const BACKEND_API_BASE = import.meta.env.PROD 
   ? '/api'  // Em produção, usa a API serverless da Vercel
-  : 'http://localhost:8000/api';  // Em desenvolvimento, usa localhost
+  : 'http://localhost:8000';  // Em desenvolvimento, usa localhost (rotas já têm /api/)
 
 // Helper: Proxiar imagem do MangaDex através do nosso backend
 const proxyMangaDexImage = (imageUrl) => {
   if (!imageUrl) return 'https://via.placeholder.com/256x360?text=No+Cover';
-  return `${BACKEND_API_BASE}/mangadex-proxy?url=${encodeURIComponent(imageUrl)}`;
+  return `${BACKEND_API_BASE}/api/mangadex-proxy?url=${encodeURIComponent(imageUrl)}`;
 };
 
 // Helper: Find relationship in manga data
