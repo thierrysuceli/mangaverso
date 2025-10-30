@@ -163,6 +163,19 @@ def extract_manga_card(item) -> MangaCard:
         print(f"Erro ao extrair card: {e}")
         return None
 
+def get_proxied_url(url: str) -> str:
+    """Retorna URL proxiada através do AllOrigins para bypass de Cloudflare"""
+    import os
+    from urllib.parse import quote
+    
+    use_proxy = os.getenv("USE_ALLORIGINS_PROXY", "true").lower() == "true"
+    
+    if use_proxy:
+        # Usar AllOrigins como proxy
+        return f"https://api.allorigins.win/raw?url={quote(url)}"
+    
+    return url
+
 async def fetch_page(url: str) -> str:
     """Faz requisição HTTP assíncrona com retry e delay anti-bot"""
     cache_key = f"page_{url}"
@@ -170,43 +183,28 @@ async def fetch_page(url: str) -> str:
         return cache[cache_key]
     
     import random
-    import os
     
-    # SOLUÇÃO: Usar proxy gratuito AllOrigins para bypass de Cloudflare
-    # AllOrigins é um CORS proxy que também funciona como proxy anti-bot
-    use_proxy = os.getenv("USE_ALLORIGINS_PROXY", "true").lower() == "true"
+    # Usar proxy AllOrigins
+    proxied_url = get_proxied_url(url)
     
-    if use_proxy:
-        try:
-            # Tentar com AllOrigins (serviço gratuito de proxy)
-            proxy_url = f"https://api.allorigins.win/raw?url={url}"
-            
-            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-                response = await client.get(proxy_url)
-                response.raise_for_status()
-                html = response.text
-                cache[cache_key] = html
-                return html
-        except Exception as e:
-            print(f"[WARN] AllOrigins proxy falhou: {e}. Tentando método direto...")
-    
-    # Fallback: Método direto com retry
+    # Tentar até 3 vezes com delays crescentes
     for attempt in range(3):
         try:
             # Delay aleatório entre 0.5s e 2s (simular humano)
             if attempt > 0:
                 await asyncio.sleep(random.uniform(1.0, 3.0))
             
-            # Usar headers aleatórios a cada tentativa
-            headers = get_random_headers()
+            # Se estiver usando proxy, não precisa de headers especiais
+            # Se não, usar headers aleatórios
+            headers = {} if proxied_url != url else get_random_headers()
             
             async with httpx.AsyncClient(
-                headers=headers, 
+                headers=headers if headers else None, 
                 timeout=30.0, 
                 follow_redirects=True,
                 cookies={}  # Aceitar cookies
             ) as client:
-                response = await client.get(url)
+                response = await client.get(proxied_url)  # Usar URL proxiada
                 
                 # Se 403, tentar novamente
                 if response.status_code == 403:
@@ -241,8 +239,11 @@ async def get_manga_cover(slug: str) -> str:
         if cache_key in cache:
             return cache[cache_key]
         
-        async with httpx.AsyncClient(headers=HEADERS, timeout=10.0, follow_redirects=True) as client:
-            response = await client.get(manga_url)
+        # Usar proxy AllOrigins
+        proxied_url = get_proxied_url(manga_url)
+        
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            response = await client.get(proxied_url)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'lxml')
                 
