@@ -15,7 +15,7 @@ const LERMANGA_API_BASE = import.meta.env.PROD
  */
 export const searchMangas = async (query) => {
   try {
-    const url = `${LERMANGA_API_BASE}/search?q=${encodeURIComponent(query)}`;
+    const url = `${LERMANGA_API_BASE}/api/search?q=${encodeURIComponent(query)}`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to search mangas');
@@ -57,7 +57,7 @@ export const filterMangas = async (filters) => {
     if (filters.order) params.append('order', filters.order);
     if (filters.page) params.append('page', filters.page);
     
-    const url = `${LERMANGA_API_BASE}/filter?${params}`;
+    const url = `${LERMANGA_API_BASE}/api/filter?${params}`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to filter mangas');
@@ -86,7 +86,7 @@ export const filterMangas = async (filters) => {
  */
 export const fetchGenres = async () => {
   try {
-    const url = `${LERMANGA_API_BASE}/genres`;
+    const url = `${LERMANGA_API_BASE}/api/genres`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch genres');
@@ -105,7 +105,7 @@ export const fetchGenres = async () => {
  */
 export const fetchMangaBySlug = async (slug) => {
   try {
-    const url = `${LERMANGA_API_BASE}/manga/${slug}`;
+    const url = `${LERMANGA_API_BASE}/api/manga/${slug}`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch manga');
@@ -146,7 +146,7 @@ export const fetchMangaBySlug = async (slug) => {
  */
 export const fetchChapter = async (chapterId) => {
   try {
-    const url = `${LERMANGA_API_BASE}/chapter/${chapterId}`;
+    const url = `${LERMANGA_API_BASE}/api/chapter/${chapterId}`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch chapter');
@@ -171,7 +171,7 @@ export const fetchChapter = async (chapterId) => {
  */
 export const fetchChapterBySlugAndNumber = async (slug, chapterNumber) => {
   try {
-    const url = `${LERMANGA_API_BASE}/manga/${slug}/chapter/${chapterNumber}`;
+    const url = `${LERMANGA_API_BASE}/api/manga/${slug}/chapter/${chapterNumber}`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to fetch chapter');
@@ -181,7 +181,7 @@ export const fetchChapterBySlugAndNumber = async (slug, chapterNumber) => {
     // Usar o proxy para as imagens evitar bloqueio de CORS/Referer
     const images = data.images || [];
     return images.map(imageUrl => 
-      `${LERMANGA_API_BASE}/proxy-image?url=${encodeURIComponent(imageUrl)}`
+      `${LERMANGA_API_BASE}/api/proxy-image?url=${encodeURIComponent(imageUrl)}`
     );
   } catch (error) {
     console.error('Error fetching chapter:', error);
