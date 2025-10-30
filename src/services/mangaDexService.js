@@ -17,7 +17,10 @@ const BACKEND_API_BASE = import.meta.env.PROD
 // Helper: Proxiar imagem do MangaDex através do nosso backend
 const proxyMangaDexImage = (imageUrl) => {
   if (!imageUrl) return 'https://via.placeholder.com/256x360?text=No+Cover';
-  return `${BACKEND_API_BASE}/api/mangadex-proxy?url=${encodeURIComponent(imageUrl)}`;
+  // Produção: /api + /mangadex-proxy = /api/mangadex-proxy
+  // Dev: http://localhost:8000 + /api/mangadex-proxy = http://localhost:8000/api/mangadex-proxy
+  const endpoint = import.meta.env.PROD ? '/mangadex-proxy' : '/api/mangadex-proxy';
+  return `${BACKEND_API_BASE}${endpoint}?url=${encodeURIComponent(imageUrl)}`;
 };
 
 // Helper: Find relationship in manga data
