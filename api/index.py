@@ -508,12 +508,16 @@ async def get_manga_detail(slug: str):
     html = await fetch_page(url)
     soup = BeautifulSoup(html, 'lxml')
     
-    # DEBUG: Log HTML length
+    # DEBUG: Log HTML length and sample
     print(f"[DEBUG] HTML length for {slug}: {len(html)} chars")
+    print(f"[DEBUG] HTML preview: {html[:500]}")  # Primeiros 500 chars
+    print(f"[DEBUG] HTML contains 'post-title': {'post-title' in html}")
+    print(f"[DEBUG] HTML contains 'summary_image': {'summary_image' in html}")
     
     # Título - Tentar múltiplos seletores
     title_elem = soup.select_one(".post-title h1, .post-title h3, h1.entry-title, .manga-title")
     title = title_elem.text.strip() if title_elem else slug
+    print(f"[DEBUG] Title element found: {title_elem is not None}")
     print(f"[DEBUG] Title: {title}")
     
     # Capa - Tentar múltiplos seletores
