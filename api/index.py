@@ -474,13 +474,26 @@ async def get_manga_detail(slug: str):
     html = await fetch_page(url)
     soup = BeautifulSoup(html, 'lxml')
     
-    # Título
-    title_elem = soup.select_one(".post-title h1")
-    title = title_elem.text.strip() if title_elem else slug
+    # DEBUG: Log HTML length
+    print(f"[DEBUG] HTML length for {slug}: {len(html)} chars")
     
-    # Capa
-    cover_elem = soup.select_one(".summary_image img")
-    cover_image = cover_elem.get("data-src") or cover_elem.get("src", "") if cover_elem else ""
+    # Título - Tentar múltiplos seletores
+    title_elem = soup.select_one(".post-title h1, .post-title h3, h1.entry-title, .manga-title")
+    title = title_elem.text.strip() if title_elem else slug
+    print(f"[DEBUG] Title: {title}")
+    
+    # Capa - Tentar múltiplos seletores
+    cover_elem = soup.select_one(
+        ".summary_image img, "
+        ".tab-summary img, "
+        ".manga-cover img, "
+        "img.wp-post-image, "
+        ".post-thumb img"
+    )
+    cover_image = ""
+    if cover_elem:
+        cover_image = cover_elem.get("data-src") or cover_elem.get("src", "")
+    print(f"[DEBUG] Cover: {cover_image[:100] if cover_image else 'NOT FOUND'}")
     
     # Rating
     rating = None
@@ -531,21 +544,28 @@ async def get_manga_detail(slug: str):
         elif "status" in header_text and content:
             status = content.text.strip()
     
-    # Gêneros
+    # Gêneros - Tentar múltiplos seletores
     genres = []
-    genre_elems = soup.select(".genres-content a")
+    genre_elems = soup.select(".genres-content a, .manga-genres a, .genres a, .post-content .genres a")
     for genre in genre_elems:
         genres.append(genre.text.strip())
+    print(f"[DEBUG] Genres: {genres}")
     
     # Badges
     badges = []
-    badge_elems = soup.select(".manga-title-badges a")
+    badge_elems = soup.select(".manga-title-badges a, .badges a")
     for badge in badge_elems:
         badges.append(badge.text.strip())
     
-    # Capítulos
+    # Capítulos - Tentar múltiplos seletores
     chapters = []
-    chapter_elems = soup.select(".listing-chapters_wrap ul.main li")
+    chapter_elems = soup.select(
+        ".listing-chapters_wrap ul.main li, "
+        ".wp-manga-chapter li, "
+        ".chapter-list li, "
+        ".main li.wp-manga-chapter"
+    )
+    print(f"[DEBUG] Found {len(chapter_elems)} chapter elements")
     for ch_elem in chapter_elems:
         ch_link = ch_elem.select_one("a")
         if not ch_link:
