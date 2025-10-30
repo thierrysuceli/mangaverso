@@ -207,7 +207,7 @@ async def fetch_page(url: str) -> str:
         proxy_list = [
             f"https://api.allorigins.win/raw?url={quote(url)}",
             f"https://thingproxy.freeboard.io/fetch/{url}",
-            f"https://cors-anywhere.herokuapp.com/{url}",
+            # CORS Anywhere removido - requer ativação manual em https://cors-anywhere.herokuapp.com/corsdemo
         ]
     else:
         proxy_list = [url]  # Sem proxy
@@ -235,13 +235,22 @@ async def fetch_page(url: str) -> str:
                     if response.status_code == 200:
                         html = response.text
                         
-                        # Validar HTML mínimo (> 1000 chars, contém "manga")
-                        if len(html) > 1000 and ('manga' in html.lower() or 'post' in html.lower()):
+                        # Validar HTML mínimo
+                        is_valid = (
+                            len(html) > 5000 and  # Deve ter pelo menos 5KB
+                            'lermangas' in html.lower() and  # Deve ser do site certo
+                            ('post-title' in html or 'wp-manga' in html or 'summary_image' in html)  # Estrutura WordPress
+                        )
+                        
+                        if is_valid:
                             cache[cache_key] = html
                             print(f"[SUCCESS] Proxy worked: {proxy_url[:50]}... ({len(html)} chars)")
+                            print(f"[DEBUG] HTML contains 'post-title': {'post-title' in html}")
+                            print(f"[DEBUG] HTML contains 'summary_image': {'summary_image' in html}")
                             return html
                         else:
-                            print(f"[WARN] Proxy returned invalid HTML: {len(html)} chars")
+                            print(f"[WARN] Proxy returned invalid HTML: {len(html)} chars, lermangas: {'lermangas' in html.lower()}")
+                            print(f"[WARN] HTML preview: {html[:300]}")
                             continue
                     
                     # Se 403/429, tentar próximo proxy
