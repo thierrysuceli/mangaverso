@@ -266,10 +266,12 @@ async def fetch_page(url: str) -> str:
                 continue
     
     # Se chegou aqui, todos os proxies falharam
-    raise HTTPException(
-        status_code=500, 
-        detail=f"Todos os proxies falharam para {url}. Último erro: {str(last_error)[:200]}"
-    )
+    # LerManga está bloqueando até proxies (Cloudflare Challenge)
+    print(f"[CRITICAL] All proxies failed for {url}. Last error: {str(last_error)[:200]}")
+    print(f"[INFO] LerManga is behind Cloudflare Challenge - cannot be scraped from serverless")
+    
+    # Retornar HTML vazio em vez de erro 500 para não quebrar frontend
+    return ""  # Frontend vai mostrar "sem dados" em vez de erro
 
 async def get_manga_cover(slug: str) -> str:
     """Busca a imagem de capa real de um mangá fazendo scraping rápido"""
@@ -323,6 +325,12 @@ async def root():
 async def get_home():
     """Retorna dados da página inicial"""
     html = await fetch_page(BASE_URL)
+    
+    # Se HTML vazio (Cloudflare bloqueou), retornar vazio
+    if not html or len(html) < 10000:
+        print("[INFO] LerManga blocked - returning empty home data")
+        return HomeData()
+    
     soup = BeautifulSoup(html, 'lxml')
     
     result = HomeData()
@@ -365,6 +373,16 @@ async def get_home():
 @app.get("/api/search", response_model=List[MangaCard])
 async def search_manga(q: str = Query(..., min_length=1)):
     """Busca mangás com autocomplete dinâmico usando AJAX do WordPress"""
+    
+    print(f"[INFO] LerManga search blocked by Cloudflare - returning empty results")
+    print(f"[INFO] Please use MangaDex for search functionality")
+    
+    # LerManga está bloqueado por Cloudflare Challenge
+    # Retornar vazio para não quebrar frontend
+    return []
+    
+    # TODO: Código abaixo desabilitado devido ao Cloudflare Challenge
+    # Requer Puppeteer/Playwright para funcionar (não disponível em serverless)
     
     # Primeiro, tentar o endpoint AJAX de autocomplete do WordPress/Madara
     autocomplete_url = f"{BASE_URL}/wp-admin/admin-ajax.php"
@@ -833,6 +851,13 @@ async def mangadex_proxy(url: str = Query(..., description="URL da imagem do Man
 @app.get("/api/genres", response_model=List[Genre])
 async def get_genres():
     """Retorna lista de todos os gêneros/tags disponíveis"""
+    
+    print(f"[INFO] LerManga genres blocked by Cloudflare - returning empty list")
+    
+    # LerManga bloqueado por Cloudflare Challenge
+    return []
+    
+    # TODO: Código abaixo desabilitado
     cache_key = "genres_list"
     if cache_key in cache:
         return cache[cache_key]
