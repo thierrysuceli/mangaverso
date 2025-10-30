@@ -170,8 +170,27 @@ async def fetch_page(url: str) -> str:
         return cache[cache_key]
     
     import random
+    import os
     
-    # Tentar até 3 vezes com delays crescentes
+    # SOLUÇÃO: Usar proxy gratuito AllOrigins para bypass de Cloudflare
+    # AllOrigins é um CORS proxy que também funciona como proxy anti-bot
+    use_proxy = os.getenv("USE_ALLORIGINS_PROXY", "true").lower() == "true"
+    
+    if use_proxy:
+        try:
+            # Tentar com AllOrigins (serviço gratuito de proxy)
+            proxy_url = f"https://api.allorigins.win/raw?url={url}"
+            
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                response = await client.get(proxy_url)
+                response.raise_for_status()
+                html = response.text
+                cache[cache_key] = html
+                return html
+        except Exception as e:
+            print(f"[WARN] AllOrigins proxy falhou: {e}. Tentando método direto...")
+    
+    # Fallback: Método direto com retry
     for attempt in range(3):
         try:
             # Delay aleatório entre 0.5s e 2s (simular humano)
