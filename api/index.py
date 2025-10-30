@@ -164,70 +164,103 @@ def extract_manga_card(item) -> MangaCard:
         return None
 
 def get_proxied_url(url: str) -> str:
-    """Retorna URL proxiada através do AllOrigins para bypass de Cloudflare"""
+    """Retorna URL proxiada através de múltiplos proxies para bypass de Cloudflare"""
     import os
     from urllib.parse import quote
     
-    use_proxy = os.getenv("USE_ALLORIGINS_PROXY", "true").lower() == "true"
+    use_proxy = os.getenv("USE_PROXY", "true").lower() == "true"
     
-    if use_proxy:
-        # Usar AllOrigins como proxy
-        return f"https://api.allorigins.win/raw?url={quote(url)}"
+    if not use_proxy:
+        return url
     
-    return url
+    # Lista de proxies gratuitos (fallback automático)
+    proxies = [
+        # 1. AllOrigins (mais estável, mas pode ter issues com JS)
+        f"https://api.allorigins.win/raw?url={quote(url)}",
+        
+        # 2. CORS Anywhere (Heroku)
+        f"https://cors-anywhere.herokuapp.com/{url}",
+        
+        # 3. ThingProxy (simples e rápido)
+        f"https://thingproxy.freeboard.io/fetch/{url}",
+    ]
+    
+    # Rodar proxies aleatoriamente para distribuir carga
+    import random
+    return random.choice(proxies)
 
 async def fetch_page(url: str) -> str:
-    """Faz requisição HTTP assíncrona com retry e delay anti-bot"""
+    """Faz requisição HTTP assíncrona com retry, múltiplos proxies e delay anti-bot"""
     cache_key = f"page_{url}"
     if cache_key in cache:
         return cache[cache_key]
     
     import random
+    from urllib.parse import quote
     
-    # Usar proxy AllOrigins
-    proxied_url = get_proxied_url(url)
+    # Lista de proxies para tentar (em ordem de prioridade)
+    import os
+    use_proxy = os.getenv("USE_PROXY", "true").lower() == "true"
     
-    # Tentar até 3 vezes com delays crescentes
-    for attempt in range(3):
-        try:
-            # Delay aleatório entre 0.5s e 2s (simular humano)
-            if attempt > 0:
-                await asyncio.sleep(random.uniform(1.0, 3.0))
-            
-            # Se estiver usando proxy, não precisa de headers especiais
-            # Se não, usar headers aleatórios
-            headers = {} if proxied_url != url else get_random_headers()
-            
-            async with httpx.AsyncClient(
-                headers=headers if headers else None, 
-                timeout=30.0, 
-                follow_redirects=True,
-                cookies={}  # Aceitar cookies
-            ) as client:
-                response = await client.get(proxied_url)  # Usar URL proxiada
+    proxy_list = []
+    if use_proxy:
+        proxy_list = [
+            f"https://api.allorigins.win/raw?url={quote(url)}",
+            f"https://thingproxy.freeboard.io/fetch/{url}",
+            f"https://cors-anywhere.herokuapp.com/{url}",
+        ]
+    else:
+        proxy_list = [url]  # Sem proxy
+    
+    last_error = None
+    
+    # Tentar cada proxy
+    for proxy_url in proxy_list:
+        for attempt in range(2):  # 2 tentativas por proxy
+            try:
+                if attempt > 0:
+                    await asyncio.sleep(random.uniform(0.5, 1.5))
                 
-                # Se 403, tentar novamente
-                if response.status_code == 403:
-                    if attempt < 2:
-                        continue
-                    raise HTTPException(
-                        status_code=403, 
-                        detail=f"Acesso bloqueado por anti-bot após {attempt+1} tentativas. URL: {url}"
-                    )
+                # Não usar headers especiais com proxy
+                headers = {} if proxy_url != url else get_random_headers()
                 
-                response.raise_for_status()
-                html = response.text
-                cache[cache_key] = html
-                return html
-                
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 403 and attempt < 2:
+                async with httpx.AsyncClient(
+                    headers=headers if headers else None, 
+                    timeout=30.0, 
+                    follow_redirects=True
+                ) as client:
+                    response = await client.get(proxy_url)
+                    
+                    # Verificar se resposta é válida
+                    if response.status_code == 200:
+                        html = response.text
+                        
+                        # Validar HTML mínimo (> 1000 chars, contém "manga")
+                        if len(html) > 1000 and ('manga' in html.lower() or 'post' in html.lower()):
+                            cache[cache_key] = html
+                            print(f"[SUCCESS] Proxy worked: {proxy_url[:50]}... ({len(html)} chars)")
+                            return html
+                        else:
+                            print(f"[WARN] Proxy returned invalid HTML: {len(html)} chars")
+                            continue
+                    
+                    # Se 403/429, tentar próximo proxy
+                    if response.status_code in [403, 429]:
+                        print(f"[WARN] Proxy blocked: {response.status_code}")
+                        break  # Próximo proxy
+                    
+                    response.raise_for_status()
+                    
+            except Exception as e:
+                last_error = e
+                print(f"[ERROR] Proxy failed: {str(e)[:100]}")
                 continue
-            raise HTTPException(status_code=e.response.status_code, detail=f"Erro HTTP {e.response.status_code}: {url}")
-        except Exception as e:
-            if attempt < 2:
-                continue
-            raise HTTPException(status_code=500, detail=f"Erro ao acessar {url}: {str(e)}")
+    
+    # Se chegou aqui, todos os proxies falharam
+    raise HTTPException(
+        status_code=500, 
+        detail=f"Todos os proxies falharam para {url}. Último erro: {str(last_error)[:200]}"
+    )
 
 async def get_manga_cover(slug: str) -> str:
     """Busca a imagem de capa real de um mangá fazendo scraping rápido"""
