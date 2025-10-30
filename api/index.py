@@ -620,6 +620,67 @@ async def proxy_image(url: str = Query(..., description="URL da imagem a ser car
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao carregar imagem: {str(e)}")
 
+@app.get("/api/mangadex-proxy")
+async def mangadex_proxy(url: str = Query(..., description="URL da imagem do MangaDex")):
+    """
+    Proxy específico para imagens do MangaDex
+    MangaDex exige:
+    - User-Agent real (não pode ser spoofed)
+    - SEM header Via (não permite proxies não-transparentes)
+    - Imagens devem ser proxiadas (não hotlinked)
+    """
+    
+    # Verificar cache primeiro
+    cache_key = f"mdx_{url}"
+    if cache_key in image_cache:
+        cached_data = image_cache[cache_key]
+        return Response(
+            content=cached_data['content'],
+            media_type=cached_data['content_type'],
+            headers={
+                "Cache-Control": "public, max-age=2592000, immutable",  # 30 dias
+                "Access-Control-Allow-Origin": "*",
+                "X-Cache": "HIT"
+            }
+        )
+    
+    try:
+        # Headers conforme documentação do MangaDex
+        # https://api.mangadex.org/docs/2-limitations/
+        mangadex_headers = {
+            "User-Agent": "MangaVerso/1.0 (https://github.com/thierrysuceli/mangaverso)",
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+            "Referer": "https://mangadex.org/",
+            # NÃO incluir Via header - MangaDex bloqueia proxies não-transparentes
+        }
+        
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            response = await client.get(url, headers=mangadex_headers)
+            response.raise_for_status()
+            
+            # Detectar tipo de conteúdo
+            content_type = response.headers.get("content-type", "image/jpeg")
+            content = response.content
+            
+            # Salvar no cache (imagens MangaDex são imutáveis)
+            image_cache[cache_key] = {
+                'content': content,
+                'content_type': content_type
+            }
+            
+            return Response(
+                content=content,
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=2592000, immutable",  # 30 dias
+                    "Access-Control-Allow-Origin": "*",
+                    "X-Cache": "MISS"
+                }
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao carregar imagem do MangaDex: {str(e)}")
+
 @app.get("/api/genres", response_model=List[Genre])
 async def get_genres():
     """Retorna lista de todos os gêneros/tags disponíveis"""

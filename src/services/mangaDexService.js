@@ -9,6 +9,17 @@ const CORS_PROXY = 'https://corsproxy.io/?';
 const MANGADEX_API_BASE = 'https://api.mangadex.org';
 const MANGADEX_COVER_BASE = 'https://uploads.mangadex.org';
 
+// Backend API base URL
+const BACKEND_API_BASE = import.meta.env.PROD 
+  ? '/api'  // Em produção, usa a API serverless da Vercel
+  : 'http://localhost:8000/api';  // Em desenvolvimento, usa localhost
+
+// Helper: Proxiar imagem do MangaDex através do nosso backend
+const proxyMangaDexImage = (imageUrl) => {
+  if (!imageUrl) return 'https://via.placeholder.com/256x360?text=No+Cover';
+  return `${BACKEND_API_BASE}/mangadex-proxy?url=${encodeURIComponent(imageUrl)}`;
+};
+
 // Helper: Find relationship in manga data
 const findRelationship = (manga, type) => {
   return manga.relationships?.find(rel => rel.type === type);
@@ -49,7 +60,10 @@ export const fetchPopularMangas = async () => {
       const coverFileName = coverRel?.attributes?.fileName;
       const coverUrl = coverFileName 
         ? `${MANGADEX_COVER_BASE}/covers/${manga.id}/${coverFileName}.256.jpg`
-        : 'https://via.placeholder.com/256x360?text=No+Cover';
+        : '';
+      const heroUrl = coverFileName 
+        ? `${MANGADEX_COVER_BASE}/covers/${manga.id}/${coverFileName}.512.jpg`
+        : '';
       
       return {
         id: manga.id,
@@ -59,8 +73,8 @@ export const fetchPopularMangas = async () => {
         genres: manga.attributes.tags?.map(tag => tag.attributes.name.en) || [],
         status: mapStatusToPortuguese(manga.attributes.status),
         totalChapters: manga.attributes.lastChapter || 'N/A',
-        cover: coverUrl,
-        heroImage: coverUrl.replace('.256.jpg', '.512.jpg'),
+        cover: proxyMangaDexImage(coverUrl),
+        heroImage: proxyMangaDexImage(heroUrl),
         progress: 0,
         lastRead: null,
         source: 'mangadex'
@@ -96,7 +110,10 @@ export const searchMangas = async (query) => {
       const coverFileName = coverRel?.attributes?.fileName;
       const coverUrl = coverFileName 
         ? `${MANGADEX_COVER_BASE}/covers/${manga.id}/${coverFileName}.256.jpg`
-        : 'https://via.placeholder.com/256x360?text=No+Cover';
+        : '';
+      const heroUrl = coverFileName 
+        ? `${MANGADEX_COVER_BASE}/covers/${manga.id}/${coverFileName}.512.jpg`
+        : '';
       
       return {
         id: manga.id,
@@ -106,8 +123,8 @@ export const searchMangas = async (query) => {
         genres: manga.attributes.tags?.map(tag => tag.attributes.name.en) || [],
         status: mapStatusToPortuguese(manga.attributes.status),
         totalChapters: manga.attributes.lastChapter || 'N/A',
-        cover: coverUrl,
-        heroImage: coverUrl.replace('.256.jpg', '.512.jpg'),
+        cover: proxyMangaDexImage(coverUrl),
+        heroImage: proxyMangaDexImage(heroUrl),
         progress: 0,
         lastRead: null,
         source: 'mangadex'
@@ -140,7 +157,7 @@ export const fetchMangaDetails = async (mangaId) => {
     const coverFileName = coverRel?.attributes?.fileName;
     const coverUrl = coverFileName 
       ? `${MANGADEX_COVER_BASE}/covers/${manga.id}/${coverFileName}.512.jpg`
-      : 'https://via.placeholder.com/512x720?text=No+Cover';
+      : '';
     
     return {
       id: manga.id,
@@ -150,7 +167,7 @@ export const fetchMangaDetails = async (mangaId) => {
       genres: manga.attributes.tags?.map(tag => tag.attributes.name.en) || [],
       status: mapStatusToPortuguese(manga.attributes.status),
       totalChapters: manga.attributes.lastChapter || 'N/A',
-      cover: coverUrl,
+      cover: proxyMangaDexImage(coverUrl),
       source: 'mangadex'
     };
   } catch (error) {
@@ -193,7 +210,7 @@ export const fetchMangaChapters = async (mangaId, language = 'pt-br') => {
 /**
  * Fetch pages for a chapter
  * @param {string} chapterId - The chapter ID
- * @returns {Promise<Array>} List of page URLs
+ * @returns {Promise<Array>} List of page URLs (proxied)
  */
 export const fetchChapterPages = async (chapterId) => {
   try {
@@ -209,7 +226,12 @@ export const fetchChapterPages = async (chapterId) => {
     const baseUrl = json.baseUrl;
     const hash = json.chapter.hash;
     
-    return json.chapter.data.map(filename => `${baseUrl}/data/${hash}/${filename}`);
+    // IMPORTANTE: Proxiar todas as imagens através do nosso backend
+    // MangaDex exige que imagens sejam proxiadas (não hotlinked)
+    return json.chapter.data.map(filename => {
+      const imageUrl = `${baseUrl}/data/${hash}/${filename}`;
+      return proxyMangaDexImage(imageUrl);
+    });
   } catch (error) {
     console.error('Error fetching chapter pages:', error);
     throw error;
@@ -293,7 +315,10 @@ export const filterMangasByTags = async (filters = {}) => {
       const coverFileName = coverRel?.attributes?.fileName;
       const coverUrl = coverFileName 
         ? `${MANGADEX_COVER_BASE}/covers/${manga.id}/${coverFileName}.256.jpg`
-        : 'https://via.placeholder.com/256x360?text=No+Cover';
+        : '';
+      const heroUrl = coverFileName 
+        ? `${MANGADEX_COVER_BASE}/covers/${manga.id}/${coverFileName}.512.jpg`
+        : '';
       
       return {
         id: manga.id,
@@ -303,8 +328,8 @@ export const filterMangasByTags = async (filters = {}) => {
         genres: manga.attributes.tags?.map(tag => tag.attributes.name.en) || [],
         status: mapStatusToPortuguese(manga.attributes.status),
         totalChapters: manga.attributes.lastChapter || 'N/A',
-        cover: coverUrl,
-        heroImage: coverUrl.replace('.256.jpg', '.512.jpg'),
+        cover: proxyMangaDexImage(coverUrl),
+        heroImage: proxyMangaDexImage(heroUrl),
         progress: 0,
         lastRead: null,
         source: 'mangadex'
