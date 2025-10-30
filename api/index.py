@@ -35,25 +35,39 @@ image_cache = TTLCache(maxsize=1000, ttl=86400)
 # URL base do site
 BASE_URL = "https://lermangas.me"
 
-# Headers para parecer um navegador real (anti-bot bypass)
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-    "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Referer": BASE_URL + "/",
-    "DNT": "1",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    "Cache-Control": "max-age=0",
-    "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"Windows"',
-}
+# Lista de User-Agents para rotação (anti-bot)
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0",
+]
+
+def get_random_headers():
+    """Gera headers com User-Agent aleatório"""
+    import random
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": BASE_URL + "/",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+        "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    }
+
+# Headers padrão (manter compatibilidade)
+HEADERS = get_random_headers()
 
 # Modelos de resposta
 class MangaCard(BaseModel):
@@ -150,19 +164,52 @@ def extract_manga_card(item) -> MangaCard:
         return None
 
 async def fetch_page(url: str) -> str:
-    """Faz requisição HTTP assíncrona"""
+    """Faz requisição HTTP assíncrona com retry e delay anti-bot"""
     cache_key = f"page_{url}"
     if cache_key in cache:
         return cache[cache_key]
     
-    async with httpx.AsyncClient(headers=HEADERS, timeout=30.0, follow_redirects=True) as client:
+    import random
+    
+    # Tentar até 3 vezes com delays crescentes
+    for attempt in range(3):
         try:
-            response = await client.get(url)
-            response.raise_for_status()
-            html = response.text
-            cache[cache_key] = html
-            return html
+            # Delay aleatório entre 0.5s e 2s (simular humano)
+            if attempt > 0:
+                await asyncio.sleep(random.uniform(1.0, 3.0))
+            
+            # Usar headers aleatórios a cada tentativa
+            headers = get_random_headers()
+            
+            async with httpx.AsyncClient(
+                headers=headers, 
+                timeout=30.0, 
+                follow_redirects=True,
+                cookies={}  # Aceitar cookies
+            ) as client:
+                response = await client.get(url)
+                
+                # Se 403, tentar novamente
+                if response.status_code == 403:
+                    if attempt < 2:
+                        continue
+                    raise HTTPException(
+                        status_code=403, 
+                        detail=f"Acesso bloqueado por anti-bot após {attempt+1} tentativas. URL: {url}"
+                    )
+                
+                response.raise_for_status()
+                html = response.text
+                cache[cache_key] = html
+                return html
+                
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 403 and attempt < 2:
+                continue
+            raise HTTPException(status_code=e.response.status_code, detail=f"Erro HTTP {e.response.status_code}: {url}")
         except Exception as e:
+            if attempt < 2:
+                continue
             raise HTTPException(status_code=500, detail=f"Erro ao acessar {url}: {str(e)}")
 
 async def get_manga_cover(slug: str) -> str:
